@@ -13,7 +13,8 @@ mbox = mailbox.mbox(args.file_path)
 if (mbox):
 	print("Mailbox loaded.")
 else:
-	print("Can't read mailbox!")
+	print("Can't read mailbox! Please make sure file path is correct.")
+	exit()
 
 to_list = ["To (Person)"]
 subject_list = ["Email subject"]
