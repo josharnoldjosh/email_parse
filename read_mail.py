@@ -59,26 +59,34 @@ else:
 
 to_list = ["To (Person)"]
 subject_list = ["Email subject"]
-emails = ["To person\'s email"]
-names = ['To person\'s name']
+names = ['Receiver name']
+emails = ["Receiver email"]
+from_email = ["Sender email (HackDavis contact)"]
+from_name = ["Sender name (HackDavis contact name)"]
 
 for message in mbox:
     if (message.is_multipart()):
         pay_load = message.get_payload()
         if (len(pay_load) >= args.num_in_thread):
             to_str = str(message['to'])
+            from_str = str(message['from'])
 
             emails.append(get_email_string(to_str))
-            names.append(get_names(to_str))         
+            from_email.append(get_email_string(from_str))
+
+            names.append(get_names(to_str))
+            from_name.append(get_names(from_str))        
 
             subj_str = str(message['subject'])
             print(to_str, "\n", subj_str, '\n\n')
             to_list.append(to_str)
+
             subject_list.append(subj_str)
 
 should_save = input("Do you want to save to a CSV? y/n: ")
 if should_save == '':
 	should_save = 'y'
+
 if ('y' in should_save.lower()):
 	# SAVE to CSV
 	file_name = input("Enter file name to save: ")
@@ -86,19 +94,35 @@ if ('y' in should_save.lower()):
 		file_name = "output.csv"
 	if ".csv" not in file_name.lower():
 		file_name += ".csv"
+
 	with open(file_name, 'w') as myfile:
 	    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
 	    i = 0
+
 	    while i < len(to_list):
-	    	to_write = [to_list[i], subject_list[i]]
+	    	to_write = [subject_list[i]]
+
+	    	if (i == 0):
+	    		to_write.append(from_email[i])
+	    		to_write.append(from_name[i])
+	    		to_write.append(names[i])
+	    		to_write.append(emails[i])	    		
+	    		i += 1
+	    		wr.writerow(to_write)
+	    		continue
+
+	    	if (i < len(from_email)):
+	    		to_write.append(" ".join(from_email[i]))
+
+	    	if (i < len(from_name)):
+	    		to_write.append(" ".join(from_name[i]))	
+
 	    	if (i < len(names)):
-	    		if (i == 0):
-	    			to_write.append(names[i])
 	    		to_write.append(" ".join(names[i]))
-	    	if (i < len(emails)):
-	    		if (i == 0):
-	    			to_write.append(emails[i])
-	    		to_write.append(" ".join(emails[i]))	    	
+
+	    	if (i < len(emails)):	    		
+	    		to_write.append(" ".join(emails[i]))	    
+
 	    	wr.writerow(to_write)
 	    	i += 1
 	    print("Done!")
