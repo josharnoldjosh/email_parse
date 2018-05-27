@@ -1,11 +1,20 @@
 import re, os.path, os, re, mailbox, sys, csv
+import threading
+from multiprocessing import queues
+
+messages = queues.SimpleQueue()
+done = threading.Event()
+blacklist = open("blacklist.txt", "r")
+data = blacklist.readlines()
+blackListRegexes = []
+for i in data:
+	blackListRegexes.append(re.compile(i))
+blacklist.close()
 
 def blacklisted_email(email):
-	with open("blacklist.txt", 'r') as blacklist:
-		data = blacklist.readlines()
-		for i in data:
-			if email == i:
-				return True
+	for regex in blackListRegexes:
+		if regex.match(email):
+			return True
 	return False
 
 def get_names(text):
@@ -58,7 +67,7 @@ def get_file_name():
 		file_name = "output_" + str(i) + ".csv"
 	return file_name
 
-def check_to_write(to_write):		
+def check_to_write(to_write):
 	if to_write[1].strip() == "":
 		return False
 	if to_write[4].strip() == "":
@@ -73,50 +82,48 @@ def create_csv(path, args):
 	else:
 		print("Can't read mailbox! Please make sure file path is correct.")
 		return
-
-	to_list = ["To (Person)"]
-	subject_list = ["Email subject"]
-	names = ['Receiver name']
-	emails = ["Receiver email"]
-	from_email = ["Sender email"]
-	from_name = ["Sender name"]
-
-	thread_ids = []
+	writer = threading.Thread(target=write_thread)
+	writer.start()
+	thread_ids = set()
 	for message in mbox:
-		if (message.is_multipart()):	       
+		if (message.is_multipart()):
 		    pay_load = message.get_payload()
 
 		    thread_id = message["X-GM-THRID"]
 		
 		    if (thread_id not in thread_ids):
-		        thread_ids.append(thread_id)
+		        thread_ids.add(thread_id)
 		        if (len(pay_load) >= args.num_in_thread):
+					item = {}
 		            to_str = str(message['to'])
 		            from_str = str(message['from'])
-		            emails.append(get_email_string(to_str))
-		            from_email.append(get_email_string(from_str))
-		            names.append(get_names(to_str))
-		            from_name.append(get_names(from_str))        
+		            item["to"] = get_email_string(to_str)
+		            item["from"] = get_email_string(from_str)
+		            item["name"] = get_names(to_str)
+		            item["from_name"] = get_names(from_str)
 		            subj_str = str(message['subject'])
 		            print(to_str, "\n", subj_str, '\n\n')
-		            to_list.append(to_str)
-		            subject_list.append(subj_str)
+		            item["subject"] = subj_str
+					messages.put(item)
+	done.set()
 
+def write_thread():
 	file_name = get_file_name()
-	print("Opening file ", file_name)      
+	print("Opening file ", file_name)
 	with open(file_name, 'w') as myfile:
 	    wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-	    i = 0
-
-	    while i < len(to_list):	    	
-	    	to_write = [subject_list[i], " ".join(from_email[i]), " ".join(from_name[i]), " ".join(names[i]), " ".join(emails[i])]
+	    header = ["Email subject", "Receiver name", "Receiver email", "Sender email", "Sender name"]
+		header_written = False
+		while not done.is_set():
+			element = messages.get()
+	    	to_write = [element["subject"], " ".join(element["from"]), " ".join(element["from_name"]), " ".join(element["to"]), " ".join(element["name"])]
 	    	if (check_to_write(to_write) == False):
 	    		i += 1
 	    		continue 
-	    	if (i == 0):
-	    		to_write = [subject_list[i], from_email[i], from_name[i], names[i], emails[i]]	  	    		 		
+	    	if not header_written:
+	    		to_write = header
+				header_written = True	 		
 	    	wr.writerow(to_write)
-	    	i += 1
 
 	    print("Saved", file_name, "!")
 
