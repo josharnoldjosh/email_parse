@@ -66,6 +66,10 @@ def get_file_name():
 	return file_name
 
 def check_to_write(to_write):
+	if '?' in to_write[2] or "Gmail Team" in to_write[2] or "Taco from Trello" in to_write[2]: 
+		return False
+	if "hackdavis" in to_write[1]:
+		return False
 	if to_write[1].strip() == "":
 		return False
 	if to_write[4].strip() == "":
@@ -112,7 +116,7 @@ def write_thread(done, messages):
 	print("Opening file ", file_name)
 	with open(file_name, 'w') as myfile:
 		wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-		header = ["Email subject", "Receiver name", "Receiver email", "Sender email", "Sender name"]
+		header = ["Email subject", "Receiver email", "Receiver name", "Sender email", "Sender name"]
 		header_written = False
 		while not done.is_set():
 			try:
